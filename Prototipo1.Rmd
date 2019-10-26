@@ -1,0 +1,173 @@
+---
+title: "Projeto de Estagio"
+author: "Ludmila"
+date: "29/09/2019"
+output:
+  ioslides_presentation: default
+  slidy_presentation: default
+---
+## Importando dados
+
+```{r setup}
+dados<-read.csv("base_seguro_viagem.csv", header = TRUE)
+str(dados)
+X<-dados$Valor
+str(X)
+```
+
+## Estatísticas Descritivas
+
+```{r, echo = TRUE}
+estatisticas <- function(x){
+  x <- x[!is.na(x)]
+  me <- mean(x)
+  med <- median(x)
+  n <- length(x)
+  s <- sd(x)
+  cofv<- sd(x)/mean(x)
+  mi <- min(x)
+  ma <- max(x)
+  ampl <- ma-mi
+  q25 <- quantile(x, probs = 0.25)
+  q75 <- quantile(x, probs = 0.75)
+Estatisticas<- c("N", "Média", "Mediana", "Desvio", "CV", "Quantil 25%", "Quantil 75%", "Min", "Max", "Amplitude")
+Descritivas<- c(formatC(n, digits=0), me, med, s,cofv, q25, q75, mi, ma, ampl)
+return(data.frame(Estatisticas, Descritivas, stringsAsFactors = FALSE))
+}
+estatisticas(X)
+```
+## Histograma
+
+```{r, echo=FALSE}
+hist(X)
+summary(X[X<722.896755618744])### pilhamento
+```
+## Carregando Pacotes + Densidade e Acumulada 
+
+```{r, echo=FALSE}
+library(fitdistrplus)
+library(actuar)
+plotdist(X, demp = TRUE)
+```
+## Distribuições Possíveis pelo Cullen and Frey Grafh
+
+```{r, echo=FALSE}
+descdist(X)
+```
+## Parametização
+
+```{r, echo=TRUE}
+fit_N<-fitdist(X, "norm")
+fit_G<-fitdist(X, "gamma")
+fit_L<-fitdist(X, "lnorm")
+fit_W<-fitdist(X, "weibull")
+```
+## Análise da Densidade
+
+```{r, error=FALSE}
+denscomp(list(fit_N, fit_G, fit_L, fit_W),lwd=4, legendtext = c("Normal->Melhor","Gamma","Lognormal","Weibull->Melhor"))
+```
+
+## Análise da Acumulada
+
+```{r}
+cdfcomp(list(fit_N, fit_G, fit_L, fit_W),lwd=4, legendtext = c("Normal->Melhor","Gamma","Lognormal","Weibull->Melhor"))
+```
+## Análise dos Quantis
+
+```{r}
+qqcomp(list(fit_N, fit_G, fit_L, fit_W),lwd=4, legendtext = c("Normal->Boa","Gamma","Lognormal","Weibull->Melhor"))
+```
+
+## Análise Probabilidade x Probabilidade
+
+```{r}
+print(quantile(X))
+ppcomp(list(fit_N, fit_G, fit_L, fit_W),lwd=4, legendtext = c("Normal->Boa","Gamma","Lognormal","Weibull->Melhor"))
+```
+
+## Observação dos Testes Estatísticos
+
+```{r}
+gofstat(list(fit_N, fit_W), fitnames = c("Normal","Weibull"))
+```
+
+Normal wins
+
+## Agregando as Distribuições.
+(Distribuição de Frequência -> Poisson com $\lambda=2$)
+
+### Usando metodo recursivo.
+
+```{r}
+fsev<-discretise(pnorm(x,fit_N$estimate[1], fit_N$estimate[2]), from = 0, to=3000, step = 10)
+ffreq<-prop.table(rpois(50, 2))
+Fscol <- aggregateDist("recursive",
+model.freq = "poisson",
+model.sev = fsev,
+lambda = 2, x.scale = 10)
+Fscol
+mean(Fscol)
+```
+
+## Aplicando o Método de Resseguro  Proporcional.
+
+### Função Método Excedente de Responsabilidade(Surplus).
+
+LT = Limite Técnico 
+a = Carregamento de Segurança Estatístico
+b = Carregamento de Despesa Comercial da Seguradora
+c = Despesa Comercial da Resseguradora.
+
+```{r, echo=TRUE}
+Surplus<-function(LT,a,b,c){
+  IS<-max(X)*max(rpois(5000,lambda = 2))
+  fit<-fitdist(X, "norm")
+  fsev<-discretise(pnorm(x,fit$estimate[1], fit$estimate[2]), from = 0, to=3000,  step
+                   = 10)
+  ffreq<-prop.table(rpois(50, 2))
+  Fscol<- aggregateDist("recursive",
+                       model.freq = "poisson",
+                       model.sev = fsev,
+                       lambda = 2, x.scale = 10)
+  P<-mean(Fscol)*(1+a)
+  Pc<-P*(1+b)
+  Z<-(Pc-mean(Fscol))/sd(Fscol)
+  #Distribuições de X.
+  Xret<-c(X[X<=LT],rep(LT,length(X[X>LT])))
+  Xress<-c(X[X>LT]-LT,rep(0,length(X[X<=LT])))
+  #Retido.
+  fitret<-fitdist(Xret, "norm")
+  fsevret<-discretise(pnorm(x,fitret$estimate[1], fitret$estimate[2]), from = 0, to=3000,  step
+                   = 10)
+  Fscolret<- aggregateDist("recursive",
+                       model.freq = "poisson",
+                       model.sev = fsevret,
+                       lambda = 2, x.scale = 10)
+  Pret<-mean(Fscolret)*(1+a)
+  Pcret<-Pret*(1+b)
+  #Resseguro.
+  fitress<-fitdist(Xress, "norm")
+  fsevress<-discretise(pnorm(x,fitress$estimate[1], fitress$estimate[2]), from = 0, to=3000,  step
+                   = 10)
+  Fscolress<- aggregateDist("recursive",
+                       model.freq = "poisson",
+                       model.sev = fsevress,
+                       lambda = 2, x.scale = 10)
+  Press<-mean(Fscolress)
+  Pcress<-mean(Fscolress)*(1+c)
+  z<-(Pret-mean(Fscolret))/sd(Fscolret)
+  u<-(mean(Fscolret)-Pret)+(1.65*(2*mean(Xret^2))^(1/2))
+  
+  
+  return(list("Prêmio Puro"=P,"Prêmio Comercial"=Pc,"Sinistro"=mean(Fscol),"Z de (1-Prob(P<EScol)"=Z,"Contrato de Resseguro"="Surplus","Prêmio Puro Retido"=Pret , 
+              "Prêmio Comercial Retido"=Pcret,
+              "Prêmio Puro Resseguro"=Press,
+              "Prêmio Comercial Resseguro"=Pcress,
+              "Sinistro Retido"=mean(Fscolret),
+              "Sinistro Resseguradora"=mean(Fscolress),
+              "Z de (1-Prob(Pret<EScolret)"=z,"Reserva de Risco(u) 95% de Solv."=u))
+ 
+} #Não Consigo encontrar sd(Fscol), o objeto é do tipo 'double'. Enfim, preciso de ajuda.
+```
+

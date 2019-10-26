@@ -1,0 +1,100 @@
+---
+title: "Manual de Aplicação de Resseguro"
+author: "Antonio Roberto S. Gonçalo"
+date: "24/10/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(fitdistrplus)
+library(actuar)
+dados<-read.csv("base_seguro_viagem.csv", header = TRUE)
+str(dados)
+X<-dados$Valor
+View(dados)
+```
+
+## Prefácio
+
+A ideia de escrever este manual surgiu desde o momento que cursava a disciplina de Estágio supervisionado II, seguros, capitalização e resseguro, no CCSA (Departamento de Ciências Sociais Aplicadas), na Universidade Federal da Paraíba, lecionada pelo professor Filipe Coelho de Lima Duarte, ocasião em que percebi a dificuldade da maioria dos alunos em concluir a atividade final proposta pelo professor, uma aplicação de resseguro utilizando a linguagem R, devido ao empenho de conciliar aprendizagem em programação com os conteúdos da disciplina, aprendizagem esta fundamental para obter uma boa experiência. 
+
+Desta forma, visando contribuir para adaptação dos alunos à programação e aplicação dos métodos de resseguro, conteúdo da disciplina, construi o manual com literatura simples e clara, com abordagens aplicadas, para que mesmo sem grande base estatística, os alunos compreendessem tal aplicação. O público a que o manual se destina são os estudantes cursando a disciplina de Estágio supervisionado II, seguros, capitalização e resseguro ou até mesmo aqueles com boa experiência na disciplina de Teoria atuarial II.
+
+## 1.Introdução
+
+Ao decorrer da disciplina de Teoria atuarial II, identificamos que o grande desafio da disciplina era determinar um valor que representasse a possível perda de uma carteira sujeita a determinado risco, valor esse que chamamos de sinistro e em seguida constituir o Premio puro, este na qual, é o sinistro acrescido de algumas taxas referentes a interesses das instituições gestoras da carteira. Entretanto, a mensuração do sinistro foi apresentado sobre duas óticas, estudamos o sinistro individual, tendo em vista a estimativa do valor de 1 sinistro, e o sinistro coletivo na qual aprendemos a agregar distribuições de frequência e severidade.
+
+Já em Estágio supervisionado II, seguros, capitalização e resseguro, obtemos uma nova noção, sabe aquela probabilidade do sinistro superar o prêmio puro? Pronto, quando ela for abusiva a gestão da carteira deve tomar algumas decisões para minimizar o risco, uma delas é a utilização do resseguro, assim, aprendemos quando é necessário o estudo de resseguro e como fazer a aplicação de suas modalidades. Aprendemos também como calcular a probabilidade de ruína e a reserva de risco, dispositivos importantes no gerenciamento do risco e solvência.
+A partir disso, adquirimos duas novas aptidões, estimar o sinistro coletivo de uma carteira de apólices sujeitas a risco que possuímos sua distribuição de severidade e de frequência e fazer o estudo de resseguro quando necessário.
+
+Mas como aplicaríamos esses novos artifícios à realidade, como poderíamos, a partir de uma carteira de segurados reais, determinar o prêmio puro e decidir se existe ou não a necessidade de contrato de resseguro? A resposta está no uso da programação, obrigatória na grande maioria dos estudos de natureza estatística.
+
+A utilização da programação é essencial para aplicar o conhecimento obtido em Teoria atuarial II e Estágio supervisionado II, seguros, capitalização e resseguro à realidade, desta forma, o manual terá como grande compromisso ensinar detalhadamente esta aplicação. Utilizaremos a linguagem de programação R por ser a mais utilizada academicamente devido a sua solidez estatística, por possuir constante desenvolvimento, popularidade e fácil aprendizagem. O software indicado é o studioR, uma plataforma com bastantes ferramentas e acessibilidade, entretanto, pode ser utilizado o software base da linguagem.
+
+## 2. Importando Dados
+
+O que diferencia as aplicações feitas em questões de provas e exercícios das aplicações à realidade é exatamente o uso de base dados.  Nas provas e exercícios, as questões nos trazem dados curtos, para que nós possamos calcular a mão e apresentar a resposta ao professor. Já na aplicação à realidade temos um grande alcance social, onde são apresentados bancos de dados extensos. Devemos ter em mente que o objetivo desse tópico consiste em importar os dados e a partir deles obter as variáveis de interesse.
+
+### 2.1. Formato dos Dados
+
+O formato mais comum e recomendado para quem usa a linguagem R é o CSV, uma abreviação que se atribui a Comma-separated values (valores separados por vírgula). É um arquivo de apenas uma planilha que contém dados separados por um sinal de pontuação, como vírgula, ponto ou ponto e vírgula.
+
+Para fazer a leitura dos dados temos dois comandos read.csv() ou read.csv2(). Como o próprio nome das funções já mostra, estes comandos fazem com que o R leia esse tipo de arquivo. Vamos então entender como utilizar essas funções. A primeira coisa que devemos saber é o nome do nosso arquivo csv a ser lido, o arquivo deve ser especificado como um argumento dessas funções entre aspas, se este estiver na mesma pasta do diretório de trabalho do R, basta colocar apenas o nome entre aspas. Entretanto se estiver em outra pasta, devemos colocar o endereço do arquivo com o comando de endereço do sistema operacional e importante e se o arquivo possuir cabeçalho devemos incluir o argumento header = TRUE. 
+
+A diferença entre os dois comandos read.csv() e read.csv2() é que existem dois argumentos nessas funções que possuem default (valor padrão) diferentes em cada uma, são eles: sep (separador de colunas) e dec (separador de casas decimais).
+Desta forma, em read.csv() os separadores decimais são pontos e os separadores de colunas são virgulas. Já em read.csv2() os separadores decimais são virgulas e os separadores de colunas são pontos e virgulas.
+
+### 2.2. Fazendo a Leitura dos Dados e Salvando a Variável
+
+Nesta seção de importando dados o objetivo principal é salvar uma ou mais variáveis referentes aos vetores de dados que desejamos trabalhar, assim, após importar a base de dados faremos o uso dos seguintes comandos para extrair o vetor desejado:
+
+1)	Primeiro utilizaremos o str(dados) para identificar a estrutura e a coluna do vetor.
+```{r}
+dados<-read.csv("base_seguro_viagem.csv", header = TRUE)
+str(dados)
+```
+2)	Observamos que a coluna do vetor dos valores é a colunar “Valor”, desta forma utilizaremos o $ para acessar a coluna do data.frame.
+```{r}
+X<-dados$Valor
+str(X)
+```
+Com isso chegamos ao nosso objetivo da parte de importação de dados, salvamos o vetor dos valores de sinistros na variável X.
+
+## 3. Estatísticas Descritivas e Histograma
+
+Após importar os dados e salvar o vetor dos valores numa variável, vamos tirar algumas conclusões a respeito desses dados a partir das estatísticas descritivas e do histograma.
+
+Para que possamos ver o histograma dos dados basta usar o comando hist() e para obter as estatísticas descritivas geralmente utilizasse o comando summary , este comando nos apresenta o mínimo, máximo, 1° quantil, 3° quantil, média e mediana dos dados, porém não apresenta o coeficiente de variação e nem a amplitude, devido a isso recomendo usar a função que mostrarei a baixo ou calcular esses valores para obter uma melhor analise.
+```{r}
+estatisticas <- function(x){
+  x <- x[!is.na(x)]
+  me <- mean(x)
+  med <- median(x)
+  n <- length(x)
+  s <- sd(x)
+  cofv<- sd(x)/mean(x)
+  mi <- min(x)
+  ma <- max(x)
+  ampl <- ma-mi
+  q25 <- quantile(x, probs = 0.25)
+  q75 <- quantile(x, probs = 0.75)
+Estatisticas<- c("N", "Média", "Mediana", "Desvio", "CV", "Quantil 25%", "Quantil 75%", "Min", "Max", "Amplitude")
+Descritivas<- c(formatC(n, digits=0), me, med, s,cofv, q25, q75, mi, ma, ampl)
+return(data.frame(Estatisticas, Descritivas, stringsAsFactors = FALSE))
+}
+estatisticas(X)
+```
+
+Está primeira análise consiste em identificar as principais características dos dados, observando em primeiro lugar se existe algum erro amostral, observar a maneira em que os dados se distribuem e a variabilidade. Desta forma, ao fazer a análise do histograma e das estatísticas descritivas iremos possuir certa propriedade para entender com que tipo de seguro estamos trabalhando. Por exemplo, os dados que salvamos na variável X são de seguro viagem e indentificamos ao observar o histograma que existe um valor muito frequente.
+```{r}
+hist(X)
+```
+
+Observem que o acúmulo de frequência acontece em valores do 1° quantil e ao identificar isto podemos investigar de diversas formas, a mais simples é olhando os valores do 1° quantil em ordem crescente. Obs: por motivos de estética ao final da linha de comando escrevi [600:749] para reduzir a quantidade de valores apresentados, porém na analise não deve ser utilizado.
+```{r}
+sort(X[X<quantile(X, probs = 0.25)], decreasing = FALSE)[600:749]
+```
+
+Perceba que o valor de 650.2334 se repete diversas vezes e este valor faz menção à corbetura de perca ou dano a bagagens que acontece com muita frequência em aeroportos.
+
